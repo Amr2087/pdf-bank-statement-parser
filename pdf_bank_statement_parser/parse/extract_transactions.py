@@ -10,6 +10,7 @@ from pdf_bank_statement_parser.constants import (
     MONTH_NAMES,
 )
 from pdf_bank_statement_parser.parse.string_cleaning import clean_fnb_currency_string
+from pdf_bank_statement_parser.exceptions import OutputInvalidException
 from pdf_bank_statement_parser.objects import Transaction
 from pdf_bank_statement_parser.parse.output_validation import (
     validate_global_balances_found,
@@ -47,10 +48,18 @@ def extract_transactions_from_fnb_pdf_statement(
             page.close()
             if page_num == 1:
                 # extract statement start year and month from first page of statement #
-                current_month, current_year_raw = re.search(
+                statement_period_match = re.search(
                     r"Statement Period\s+:\s+\d{2}\s+([a-zA-Z]{3})[a-zA-Z]*\s+(\d{4})",
                     page_text,
-                ).groups()
+                )
+                if statement_period_match is None:
+                    raise OutputInvalidException(
+                        "Could not find 'Statement Period' in the first page of the PDF. "
+                        "Expected a line matching the pattern "
+                        "'Statement Period : DD Mon YYYY'. "
+                        "Please ensure this is a valid FNB bank statement PDF."
+                    )
+                current_month, current_year_raw = statement_period_match.groups()
                 current_year = int(current_year_raw)
                 if verbose:
                     print(f"starting year is {current_year}")
